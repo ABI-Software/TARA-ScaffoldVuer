@@ -1,6 +1,8 @@
 import { resolve } from 'node:path'
 
 import { defineConfig } from 'vite'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import vue from '@vitejs/plugin-vue'
 
 // https://vitejs.dev/config/
@@ -8,7 +10,21 @@ export default defineConfig({
   server: {
     port: 8081,
   },
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    Components({
+      // allow auto load markdown components under `./src/components/`
+      extensions: ['vue', 'md'],
+      // allow auto import and register components used in markdown
+      include: [/\.vue$/, /\.vue\?vue/, /\.md$/],
+      resolvers: [
+        ElementPlusResolver({
+          importStyle: 'sass',
+        }),
+      ],
+      dts: 'src/components.d.ts',
+    }),
+  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
@@ -17,14 +33,15 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, './src/components/index.js'),
-      name: 'VueComponentTemplate',
-      fileName: 'vue-component-template',
+      name: 'TaraScaffoldVuer',
+      fileName: 'TaraScaffoldVuer',
     },
     rollupOptions: {
-      external: ['vue'],
+      external: ["vue", "pinia"],
       output: {
         globals: {
-          vue: 'vue',
+          vue: "Vue",
+          pinia: "pinia"
         },
       },
     },

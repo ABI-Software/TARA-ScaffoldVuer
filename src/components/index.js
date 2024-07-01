@@ -1,5 +1,5 @@
-import VueComponentTemplate from './VueComponentTemplate.vue';
+import TaraScaffoldVuer from './TaraScaffoldVuer.vue';
 
 export {
-  VueComponentTemplate
+  TaraScaffoldVuer
 };
