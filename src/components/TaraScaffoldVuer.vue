@@ -1,5 +1,40 @@
 <template>
   <div class="scaffold-container">
+    <div class="settings-panels">
+      <el-row :gutter="20" justify="center" align="middle">
+        <el-col :span="auto">
+          <el-button
+            size="small"
+            :icon="ElIconFolderOpened"
+            @click="exportLocalAnnotations()">
+            Export Annotations
+          </el-button>
+        </el-col>
+        <el-col :span="auto">
+            <el-button size="small" :icon="ElIconFolderOpened">
+              <label for="annotations-upload">Import Annotations</label>
+              <input
+                id="annotations-upload"
+                type="file"
+                accept="application/json"
+                @change="importLocalAnnotations" 
+              />
+            </el-button>
+        </el-col>
+      </el-row>
+      <el-row :gutter="20" justify="center" align="middle">
+        <el-col :span="12">
+          Quick Edit
+        </el-col>
+        <el-col :span="6">
+          <el-switch
+            v-model="quickEditOn"
+            :active-action-icon="ElIconEditPen"
+            :inactive-action-icon="ElIconEditPen"
+          />
+        </el-col>
+      </el-row>
+    </div>
     <ScaffoldVuer
       v-if="url"
       ref="scaffold"
@@ -10,23 +45,22 @@
       :helpModeDialog="useHelpModeDialog"
       :helpModeActiveItem="helpModeActiveItem"
       @help-mode-last-item="onHelpModeLastItem"
-      @shown-tooltip="onTooltipShown"
-      @shown-map-tooltip="onMapTooltipShown"
       :display-latest-changes="false"
       :display-minimap="false"
       :display-markers="false"
       :enableOpenMapUI="false"
+      :enableLocalAnnotations="true"
       :marker-cluster="false"
       :show-colour-picker="showColourPicker"
       :render="true"
       @on-ready="onReady"
       @scaffold-selected="onSelected"
+      @user-primitives-updated="userPrimitivesUpdated"
       @zinc-object-added="objectAdded"
       @vue:mounted="viewerMounted"
     />
   </div>
 </template>
-
 
 <script>
 /* eslint-disable no-alert, no-console */
@@ -34,11 +68,10 @@ import { shallowRef } from 'vue';
 import { ScaffoldVuer } from "@abi-software/scaffoldvuer";
 import "@abi-software/scaffoldvuer/dist/style.css";
 import {
+  EditPen as ElIconEditPen,
   FolderOpened as ElIconFolderOpened,
-  Setting as ElIconSetting,
 } from '@element-plus/icons-vue';
 import {
-  ElAutocomplete as Autocomplete,
   ElButton as Button,
   ElCol as Col,
   ElIcon as Icon,
@@ -48,13 +81,22 @@ import {
   ElRow as Row,
   ElSwitch as Switch,
 } from "element-plus";
-import { HelpModeDialog } from '@abi-software/map-utilities'
-import '@abi-software/map-utilities/dist/style.css'
+
+const writeTextFile = (filename, data) => {
+  let dataStr =
+    "data:text/json;charset=utf-8," +
+    encodeURIComponent(JSON.stringify(data));
+  let hrefElement = document.createElement("a");
+  document.body.append(hrefElement);
+  hrefElement.download = filename;
+  hrefElement.href = dataStr;
+  hrefElement.click();
+  hrefElement.remove();
+} 
 
 export default {
   name: "TaraScaffoldVuer",
   components: {
-    Autocomplete,
     Button,
     Col,
     Icon,
@@ -63,21 +105,20 @@ export default {
     Popover,
     Row,
     Switch,
+    ElIconEditPen,
     ElIconFolderOpened,
-    ElIconSetting,
     ScaffoldVuer,
-    HelpModeDialog,
   },
   data: function () {
     return {
+      quickEditOn: false,
       consoleOn: true,
       displayUI: true,
       helpMode: false,
-      helpMode: false,
       helpModeActiveItem: 0,
       helpModeLastItem: false,
-      useHelpModeDialog: true,
-      ElIconSetting: shallowRef(ElIconSetting),
+      useHelpModeDialog: false,
+      ElIconEditPen: shallowRef(ElIconEditPen),
       ElIconFolderOpened: shallowRef(ElIconFolderOpened),
       coordinatesClicked: [],
     };
@@ -94,81 +135,105 @@ export default {
         this.helpModeActiveItem = 0;
       }
     },
+    quickEditOn: function(value) {
+      if (value) {
+        this.$refs.scaffold.viewingMode = "Exploration";
+      }
+    },
   },
   mounted: function () {
     this._objects = [];
-  },
-  unmounted: function () {
-    this.$refs.dropzone.revokeURLs();
+    this._createLinesLength = 100;
+    const Zinc = this.$refs.scaffold.$module.Zinc;
+    this._rayCaster = new Zinc.RayCaster(this.$refs.scaffold.$module.scene,
+      this.$refs.scaffold.$module.scene, undefined, undefined);
   },
   methods: {
+    exportLocalAnnotations: function() {
+      const annotations = this.$refs.scaffold.getLocalAnnotations();
+      const filename = 'scaffoldAnnotations' + JSON.stringify(new Date()) + '.json';
+      writeTextFile(filename, annotations);
+    },
+    onReaderLoad: function(event) {
+      const annotationsList = JSON.parse(event.target.result);
+      this.$refs.scaffold.importLocalAnnotations(annotationsList);
+    },
+    importLocalAnnotations: function() {
+      const selectedFile = document.getElementById("annotations-upload").files[0];
+      const reader = new FileReader();
+      reader.onload = this.onReaderLoad;
+      reader.readAsText(selectedFile);
+    },
     objectAdded: function (zincObject) {
       if (this.consoleOn) {
         console.log(zincObject)
-        console.log(this.$refs.scaffold.$module.scene.getBoundingBox())
+        this._objects.push(zincObject);
       }
-      if (this._objects.length === 0) {
-        zincObject.setMarkerMode("on");
-      }
-      this._objects.push(zincObject);
     },
     screenCapture: function () {
       this.$refs.scaffold.captureScreenshot("capture.png");
     },
     onReady: function () {
-      if (this.consoleOn) console.log(this.$refs.scaffold)
+      const bounds = this.$refs.scaffold.$module.scene.getBoundingBox();
+      const d = bounds.max.distanceTo( bounds.min );
+      this._createLinesLength = d / 6.0;
+      if (this.consoleOn) console.log("Lines length", this._createLinesLength);
+      this.$refs.scaffold.changeActiveByName(
+        undefined, undefined, false);
+      this._rayCaster.setPickableObjects(this._objects);
     },
-    addLines: function (coord) {
-      if (this.coordinatesClicked.length === 1) {
-        const returned = this.$refs.scaffold.$module.scene.createLines(
-            "test",
-            "lines",
-            [this.coordinatesClicked[0], coord],
-            0x00ee22,
-          );
-          this.coordinatesClicked.length = 0;
-          if (this.consoleOn) console.log(returned);
-      } else {
-        this.coordinatesClicked.push(coord);
+    addLinesWithNormal: function (data, coord, normal) {
+      const myViewer = this.$refs.scaffold;
+      if (this.consoleOn) console.log(myViewer.createData);
+      if (coord && normal) {
+        myViewer.tData.visible = true;
+        const newCoords = [
+          coord[0] + normal.x * this._createLinesLength,
+          coord[1] + normal.y * this._createLinesLength,
+          coord[2] + normal.z * this._createLinesLength,
+        ];
+        myViewer.createData.points.length = 0;
+        myViewer.createData.points.push(newCoords);
+        myViewer.createEditTemporaryLines(coord);
+        myViewer.createData.shape = "LineString";
+        myViewer.drawLine(
+          coord,
+          data,
+        );
       }
     },
     onSelected: function (data) {
       if (data && data.length > 0 && data[0].data.group) {
-        if (this.consoleOn) console.log(data[0]);
-        if (this.createPoints && data[0].extraData.worldCoords) {
-          const returned = this.$refs.scaffold.$module.scene.createPoints(
-            "test",
-            "points",
-            [data[0].extraData.worldCoords],
-            undefined,
-            0x0022ee,
-          );
+        if (this.consoleOn) console.log(data[0], data[0].extraData.intersected);
+        if (this.quickEditOn && data[0].extraData.worldCoords &&
+          data[0].extraData.intersected?.face) {
+          this.addLinesWithNormal(
+            data,
+            data[0].extraData.worldCoords,
+            data[0].extraData.intersected.face.normal)
         }
-        this.$refs.scaffold.showRegionTooltipWithAnnotations(data, false, true);
       }
     },
-    onHelpModeShowNext: function () {
-      this.helpModeActiveItem += 1;
-    },
-    onHelpModeLastItem: function (isLastItem) {
-      if (isLastItem) {
-        this.helpModeLastItem = true;
-      }
-    },
-    onFinishHelpMode: function () {
-      this.helpMode = false;
-      // reset help mode to default values
-      this.helpModeActiveItem = 0;
-      this.helpModeLastItem = false;
-    },
-    onTooltipShown: function () {
-      if (this.$refs.scaffold && this.$refs.scaffoldHelp) {
-        this.$refs.scaffoldHelp.toggleTooltipHighlight();
-      }
-    },
-    onMapTooltipShown: function () {
-      if (this.$refs.scaffold && this.$refs.scaffoldHelp) {
-        this.$refs.scaffoldHelp.toggleTooltipPinHighlight();
+    userPrimitivesUpdated: function (payload) {
+      if (this.consoleOn) console.log("userPrimitivesUpdated", payload);
+      const zincObject = payload.zincObject;
+      if (zincObject.isEditable && zincObject.isLines2) {
+        if (this._rayCaster) {
+          const scene = this.$refs.scaffold.$module.scene;
+          const camera = scene.getZincCameraControls();
+          for (let i = 0; i * 2 < zincObject.drawRange; i++) {
+            const v = zincObject.getVerticesByFaceIndex(i);
+            console.log(v)
+            const origin = v[0];
+            let d = [v[1][0] - v[0][0], v[1][1] - v[0][1], v[1][2] - v[0][2]];
+            const mag = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+            for (let l = 0; l < 3; l++) {
+              d[i] = d[i] / mag;
+            }
+            console.log(this._rayCaster.getIntersectsObjectWithOrigin(camera, origin, d));
+          }
+          
+        }
       }
     },
   },
@@ -181,6 +246,44 @@ export default {
   width: 100%;
   overflow: hidden;
   position: absolute;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+.settings-panels {
+  z-index:10000;
+  right:0px;
+  position:absolute;
+  text-align: center;
+
+  .el-row {
+    width:200px; 
+    .el-col {
+      &.is-guttered {
+        padding-top: 5px;
+        padding-bottom: 5px;
+      }
+
+      > p {
+        font-size: 12px;
+        margin: 0;
+      }
+
+      .el-input__inner,
+      .el-switch {
+        font-size: 12px;
+        height: 20px;
+      }
+    }
+  }
+}
+
+.vuer {
+  :deep(svg.map-icon) {
+    color: #8300BF;
+  }
 }
 /* Component Styles */
 </style>

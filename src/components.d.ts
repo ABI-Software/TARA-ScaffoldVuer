@@ -7,6 +7,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ElButton: typeof import('element-plus/es')['ElButton']
+    ElCol: typeof import('element-plus/es')['ElCol']
+    ElRow: typeof import('element-plus/es')['ElRow']
+    ElSwitch: typeof import('element-plus/es')['ElSwitch']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TaraScaffoldVuer: typeof import('./components/TaraScaffoldVuer.vue')['default']
