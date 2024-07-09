@@ -81,6 +81,9 @@ import {
   ElRow as Row,
   ElSwitch as Switch,
 } from "element-plus";
+import {
+  THREE
+} from "zincjs";
 
 const writeTextFile = (filename, data) => {
   let dataStr =
@@ -92,7 +95,19 @@ const writeTextFile = (filename, data) => {
   hrefElement.href = dataStr;
   hrefElement.click();
   hrefElement.remove();
-} 
+}
+
+const getIntersectedObjects = (intersects) => {
+  const list = [];
+  intersects.forEach((intersect) => {
+    const zincObject = intersect.obejct.userData;
+
+
+  });
+}
+
+const v1 = new THREE.Vector3();
+const v2 = new THREE.Vector3();
 
 export default {
   name: "TaraScaffoldVuer",
@@ -112,7 +127,6 @@ export default {
   data: function () {
     return {
       quickEditOn: false,
-      consoleOn: true,
       displayUI: true,
       helpMode: false,
       helpModeActiveItem: 0,
@@ -121,9 +135,14 @@ export default {
       ElIconEditPen: shallowRef(ElIconEditPen),
       ElIconFolderOpened: shallowRef(ElIconFolderOpened),
       coordinatesClicked: [],
+      intersects: {}
     };
   },
   props: {
+    consoleOn: {
+      type: Boolean,
+      default: false,
+    },    
     url: {
       type: String,
       default: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/texture/arm1/arm_metadata.json",
@@ -137,16 +156,24 @@ export default {
     },
     quickEditOn: function(value) {
       if (value) {
+        this.$refs.scaffold.$module.ignorePreviousSelected = true;
         this.$refs.scaffold.viewingMode = "Exploration";
+      } else {
+        this.$refs.scaffold.$module.ignorePreviousSelected = false;
       }
     },
   },
   mounted: function () {
-    this._objects = [];
     this._createLinesLength = 100;
     const Zinc = this.$refs.scaffold.$module.Zinc;
-    this._rayCaster = new Zinc.RayCaster(this.$refs.scaffold.$module.scene,
-      this.$refs.scaffold.$module.scene, undefined, undefined);
+    this._pickableObjects = [];
+    const scene  = this.$refs.scaffold.$module.scene;
+    this._rayCaster = new Zinc.RayCaster(
+      scene,
+      scene,
+      undefined,
+      undefined,
+    );
   },
   methods: {
     exportLocalAnnotations: function() {
@@ -165,52 +192,87 @@ export default {
       reader.readAsText(selectedFile);
     },
     objectAdded: function (zincObject) {
-      if (this.consoleOn) {
-        console.log(zincObject)
-        this._objects.push(zincObject);
+      if (!zincObject.isLines2) {
+        this._pickableObjects.push(zincObject);
       }
     },
     screenCapture: function () {
       this.$refs.scaffold.captureScreenshot("capture.png");
     },
     onReady: function () {
-      const bounds = this.$refs.scaffold.$module.scene.getBoundingBox();
+      const viewer = this.$refs.scaffold;
+      const bounds = viewer.$module.scene.getBoundingBox();
       const d = bounds.max.distanceTo( bounds.min );
       this._createLinesLength = d / 6.0;
       if (this.consoleOn) console.log("Lines length", this._createLinesLength);
-      this.$refs.scaffold.changeActiveByName(
+      viewer.changeActiveByName(
         undefined, undefined, false);
-      this._rayCaster.setPickableObjects(this._objects);
+      const camera = viewer.$module.scene.getZincCameraControls();
+      //Call the following to set the camera
+      this._rayCaster.getIntersectsObjectWithCamera(camera, 0, 0);
     },
     addLinesWithNormal: function (data, coord, normal) {
       const myViewer = this.$refs.scaffold;
+      console.log(data, coord, normal);
       if (this.consoleOn) console.log(myViewer.createData);
+      //changing shape like this will create a reactive issue.
       if (coord && normal) {
-        myViewer.tData.visible = true;
-        const newCoords = [
-          coord[0] + normal.x * this._createLinesLength,
-          coord[1] + normal.y * this._createLinesLength,
-          coord[2] + normal.z * this._createLinesLength,
-        ];
-        myViewer.createData.points.length = 0;
-        myViewer.createData.points.push(newCoords);
-        myViewer.createEditTemporaryLines(coord);
         myViewer.createData.shape = "LineString";
-        myViewer.drawLine(
-          coord,
-          data,
-        );
+        this.$nextTick(() => {
+          const newCoords = [
+            coord[0] + normal.x * this._createLinesLength,
+            coord[1] + normal.y * this._createLinesLength,
+            coord[2] + normal.z * this._createLinesLength,
+          ];
+          myViewer.createData.toBeConfirmed = false;
+          myViewer.createData.points.length = 0;
+          myViewer.createData.points.push(newCoords);
+          myViewer.createEditTemporaryLines(coord);
+          myViewer.drawLine(coord, data);
+        });
+      }
+    },
+    addPoint: function (data, coord) {
+      const myViewer = this.$refs.scaffold;
+      if (this.consoleOn) {
+        console.log(myViewer.createData);
+        console.log("addPoints", data, coord);
+      }
+      if (coord) {
+        myViewer.createData.shape = "Point";
+        this.$nextTick(() => {
+          myViewer.createData.toBeConfirmed = false;
+          myViewer.createData.points.length = 0;
+          myViewer.drawPoint(coord, data);
+        });
       }
     },
     onSelected: function (data) {
       if (data && data.length > 0 && data[0].data.group) {
-        if (this.consoleOn) console.log(data[0], data[0].extraData.intersected);
-        if (this.quickEditOn && data[0].extraData.worldCoords &&
-          data[0].extraData.intersected?.face) {
-          this.addLinesWithNormal(
-            data,
-            data[0].extraData.worldCoords,
-            data[0].extraData.intersected.face.normal)
+        if (this.consoleOn) {
+          console.log(data[0].extraData.intersects);
+          console.log(data[0], data[0].extraData.intersected);
+        }
+        if (this.quickEditOn && data[0].extraData.worldCoords) {
+          if (data[0].extraData.intersected?.face) {
+            this.addPoint(data, data[0].extraData.worldCoords);
+          } else {
+             //Look for the surface underneath a point
+            if (data[0].data.zincObject?.isPointset) {
+              const intersects = data[0].extraData.intersects;
+              console.log(intersects);
+              if (intersects) {
+                let found = false;
+                for (let i = 0; i < intersects.length && !found; i++) {
+                  if (intersects[i].face) {
+                    found = true;
+                    const coord = [intersects[i].point.x, intersects[i].point.y ,intersects[i].point.z];
+                    this.addLinesWithNormal(data, coord, intersects[i].face.normal);
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -218,21 +280,24 @@ export default {
       if (this.consoleOn) console.log("userPrimitivesUpdated", payload);
       const zincObject = payload.zincObject;
       if (zincObject.isEditable && zincObject.isLines2) {
+        const scene = this.$refs.scaffold.$module.scene;
+        const camera = scene.getZincCameraControls();
         if (this._rayCaster) {
-          const scene = this.$refs.scaffold.$module.scene;
-          const camera = scene.getZincCameraControls();
           for (let i = 0; i * 2 < zincObject.drawRange; i++) {
             const v = zincObject.getVerticesByFaceIndex(i);
-            console.log(v)
-            const origin = v[0];
             let d = [v[1][0] - v[0][0], v[1][1] - v[0][1], v[1][2] - v[0][2]];
             const mag = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
             for (let l = 0; l < 3; l++) {
-              d[i] = d[i] / mag;
+              v1.setComponent(l, v[0][l]);
+              d[l] = d[l] / mag;
+              v2.setComponent(l, d[l]);
             }
-            console.log(this._rayCaster.getIntersectsObjectWithOrigin(camera, origin, d));
+            this._rayCaster.setPickableObjects(this._pickableObjects);
+            const objects = this._rayCaster.getIntersectsObjectWithOrigin(
+              camera, v1, v2);
+            const intersects = objects.filter((object) => object.distance < mag);
+            
           }
-          
         }
       }
     },

@@ -4,7 +4,7 @@ import TaraScaffoldVuer from './components/TaraScaffoldVuer.vue';
 
 <template>
   <div id="app">
-    <TaraScaffoldVuer :url="url" />
+    <TaraScaffoldVuer :url="url" :console-on="true"/>
   </div>
 </template>
 
