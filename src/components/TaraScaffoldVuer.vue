@@ -106,6 +106,24 @@ const getIntersectedObjects = (intersects) => {
   });
 }
 
+const findNearbyPoints = (data, tolerance) => {
+  if (data[0].data.zincObject?.isPointset) {
+    return data[0].data.zincObject;
+  } else {
+    let distance = data[0].extraData.intersected.distance + tolerance;
+    const intersects = data[0].extraData.intersects;
+    for (let i = 0; i < intersects.length; i++) {
+      if (distance > intersects[i].distance) {
+       if (intersects[i].object.userData?.isPointset) {
+        return intersects[i].object.userData;
+       }
+      } else {
+        return;
+      }
+    }
+  }
+}
+
 const v1 = new THREE.Vector3();
 const v2 = new THREE.Vector3();
 
@@ -147,6 +165,10 @@ export default {
       type: String,
       default: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/texture/arm1/arm_metadata.json",
     },
+    pointTolerance: {
+      type: Number,
+      default: 20,
+    }
   },
   watch: {
     helpMode: function (newVal) {
@@ -209,7 +231,10 @@ export default {
         undefined, undefined, false);
       const camera = viewer.$module.scene.getZincCameraControls();
       //Call the following to set the camera
-      this._rayCaster.getIntersectsObjectWithCamera(camera, 0, 0);
+      this.$nextTick(() => {
+        this._rayCaster.getIntersectsObjectWithCamera(camera, 0, 0);
+      });
+      
     },
     addLinesWithNormal: function (data, coord, normal) {
       const myViewer = this.$refs.scaffold;
@@ -254,24 +279,23 @@ export default {
           console.log(data[0], data[0].extraData.intersected);
         }
         if (this.quickEditOn && data[0].extraData.worldCoords) {
-          if (data[0].extraData.intersected?.face) {
-            this.addPoint(data, data[0].extraData.worldCoords);
-          } else {
+          //Try to look for point within tolerance
+          const points = findNearbyPoints(data, this.pointTolerance);
              //Look for the surface underneath a point
-            if (data[0].data.zincObject?.isPointset) {
-              const intersects = data[0].extraData.intersects;
-              console.log(intersects);
-              if (intersects) {
-                let found = false;
-                for (let i = 0; i < intersects.length && !found; i++) {
-                  if (intersects[i].face) {
-                    found = true;
-                    const coord = [intersects[i].point.x, intersects[i].point.y ,intersects[i].point.z];
-                    this.addLinesWithNormal(data, coord, intersects[i].face.normal);
-                  }
+          if (points && points?.isPointset) {
+            const intersects = data[0].extraData.intersects;
+            if (intersects) {
+              let found = false;
+              for (let i = 0; i < intersects.length && !found; i++) {
+                if (intersects[i].face) {
+                  found = true;
+                  const coord = [intersects[i].point.x, intersects[i].point.y ,intersects[i].point.z];
+                  this.addLinesWithNormal(data, coord, intersects[i].face.normal);
                 }
               }
             }
+          } else if (data[0].extraData.intersected?.face) {
+            this.addPoint(data, data[0].extraData.worldCoords);
           }
         }
       }
