@@ -34,6 +34,23 @@
           />
         </el-col>
       </el-row>
+      <el-row :gutter="20" justify="center" align="middle">
+        <el-popover placement="bottom" trigger="manual" :visible="infoVisible" width="550" popper-class="table-popover" :teleported="false">
+          <template #default>
+              <NeedlesTable :needlesInfo="needlesInfo" />
+          </template>
+          <template #reference>
+            <el-button
+              size="small"
+              class="needles-button"
+              @click="infoVisible = !infoVisible"
+              :icon="ElIconDataAnalysis"
+            >
+              Toggle Needles Info
+            </el-button>
+          </template>
+        </el-popover>
+      </el-row>
     </div>
     <ScaffoldVuer
       v-if="url"
@@ -41,10 +58,6 @@
       class="vuer"
       :display-u-i="displayUI"
       :url="url"
-      :help-mode="helpMode"
-      :helpModeDialog="useHelpModeDialog"
-      :helpModeActiveItem="helpModeActiveItem"
-      @help-mode-last-item="onHelpModeLastItem"
       :display-latest-changes="false"
       :display-minimap="false"
       :display-markers="false"
@@ -65,11 +78,13 @@
 <script>
 /* eslint-disable no-alert, no-console */
 import { shallowRef } from 'vue';
+import NeedlesTable from "./NeedlesTable.vue";
 import { ScaffoldVuer } from "@abi-software/scaffoldvuer";
 import "@abi-software/scaffoldvuer/dist/style.css";
 import {
   EditPen as ElIconEditPen,
   FolderOpened as ElIconFolderOpened,
+  DataAnalysis as ElIconDataAnalysis,
 } from '@element-plus/icons-vue';
 import {
   ElButton as Button,
@@ -98,12 +113,19 @@ const writeTextFile = (filename, data) => {
 }
 
 const getIntersectedObjects = (intersects) => {
-  const list = [];
+  const primitiveInfos = [];
   intersects.forEach((intersect) => {
-    const zincObject = intersect.obejct.userData;
-
-
+    const zincObject = intersect.object.userData;
+    if (zincObject) {
+      const groupName = zincObject?.groupName;
+      const distance = intersect.distance.toFixed(2);
+      const x = intersect.point.x.toFixed(2);
+      const y = intersect.point.y.toFixed(2);
+      const z = intersect.point.z.toFixed(2);
+      primitiveInfos.push({groupName, distance, x, y, z});
+    }
   });
+  return primitiveInfos;
 }
 
 const findNearbyPoints = (data, tolerance) => {
@@ -140,20 +162,19 @@ export default {
     Switch,
     ElIconEditPen,
     ElIconFolderOpened,
+    NeedlesTable,
     ScaffoldVuer,
   },
   data: function () {
     return {
       quickEditOn: false,
       displayUI: true,
-      helpMode: false,
-      helpModeActiveItem: 0,
-      helpModeLastItem: false,
-      useHelpModeDialog: false,
       ElIconEditPen: shallowRef(ElIconEditPen),
       ElIconFolderOpened: shallowRef(ElIconFolderOpened),
+      ElIconDataAnalysis: shallowRef(ElIconDataAnalysis),
       coordinatesClicked: [],
-      intersects: {}
+      needlesInfo: {},
+      infoVisible: false,
     };
   },
   props: {
@@ -227,18 +248,9 @@ export default {
       const d = bounds.max.distanceTo( bounds.min );
       this._createLinesLength = d / 6.0;
       if (this.consoleOn) console.log("Lines length", this._createLinesLength);
-      viewer.changeActiveByName(
-        undefined, undefined, false);
-      const camera = viewer.$module.scene.getZincCameraControls();
-      //Call the following to set the camera
-      this.$nextTick(() => {
-        this._rayCaster.getIntersectsObjectWithCamera(camera, 0, 0);
-      });
-      
     },
     addLinesWithNormal: function (data, coord, normal) {
       const myViewer = this.$refs.scaffold;
-      console.log(data, coord, normal);
       if (this.consoleOn) console.log(myViewer.createData);
       //changing shape like this will create a reactive issue.
       if (coord && normal) {
@@ -304,8 +316,10 @@ export default {
       if (this.consoleOn) console.log("userPrimitivesUpdated", payload);
       const zincObject = payload.zincObject;
       if (zincObject.isEditable && zincObject.isLines2) {
+        //Call the following to set the camera       
         const scene = this.$refs.scaffold.$module.scene;
         const camera = scene.getZincCameraControls();
+        this._rayCaster.getIntersectsObjectWithCamera(camera, 0, 0);
         if (this._rayCaster) {
           for (let i = 0; i * 2 < zincObject.drawRange; i++) {
             const v = zincObject.getVerticesByFaceIndex(i);
@@ -320,7 +334,12 @@ export default {
             const objects = this._rayCaster.getIntersectsObjectWithOrigin(
               camera, v1, v2);
             const intersects = objects.filter((object) => object.distance < mag);
-            
+            const primitivesInfo = getIntersectedObjects(intersects);
+            let needlesName = `Needle ${i + 1}`;
+            if (zincObject.groupName) {
+              needlesName = needlesName + ` of ${zincObject.groupName}`;
+            }
+            this.needlesInfo[needlesName] = primitivesInfo;
           }
         }
       }
@@ -330,6 +349,10 @@ export default {
 </script>
 
 <style scoped lang="scss">
+
+:deep(.warning-icon) {
+  display:none;
+}
 .scaffold-container {
   height: 100%;
   width: 100%;
@@ -346,6 +369,7 @@ input[type="file"] {
   right:0px;
   position:absolute;
   text-align: center;
+  background-color: rgba(255, 255, 255, 0.5);
 
   .el-row {
     width:200px; 
@@ -367,6 +391,11 @@ input[type="file"] {
       }
     }
   }
+}
+
+.needles-button {
+  z-index:10000;
+  margin-top: 5px;
 }
 
 .vuer {
