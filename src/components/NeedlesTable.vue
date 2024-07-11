@@ -1,11 +1,12 @@
 <template>
   <div class="info-container">
-    <el-select v-model="activeName" placeholder="Select" style="width: 240px">
+    <el-select :teleported="false" v-model="activeName" placeholder="Select" style="width: 240px" class="option-container">
       <el-option
         v-for="(value, key) in needlesInfo"
         :key="key"
         :label="key"
         :value="key"
+        
       />
     </el-select>
     <el-table
@@ -88,6 +89,7 @@ export default {
   data() {
     return {
       activeName: '',
+      keys: [ "1", "2"],
     }
   },
 };
@@ -100,6 +102,10 @@ export default {
 
 .info-container {
   width:500px;
+}
+
+.option-container {
+  z-index:10005;
 }
 
 </style>

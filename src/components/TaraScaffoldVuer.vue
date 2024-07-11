@@ -37,7 +37,7 @@
       <el-row :gutter="20" justify="center" align="middle">
         <el-popover placement="bottom" trigger="manual" :visible="infoVisible" width="550" popper-class="table-popover" :teleported="false">
           <template #default>
-              <NeedlesTable :needlesInfo="needlesInfo" />
+            <NeedlesTable :needlesInfo="needlesInfo" />
           </template>
           <template #reference>
             <el-button
@@ -46,7 +46,7 @@
               @click="infoVisible = !infoVisible"
               :icon="ElIconDataAnalysis"
             >
-              Toggle Needles Info
+              {{ infoVisible ? "Hide Needles Info" : "Display Needles Info"}}
             </el-button>
           </template>
         </el-popover>
@@ -175,6 +175,7 @@ export default {
       coordinatesClicked: [],
       needlesInfo: {},
       infoVisible: false,
+      importing: false,
     };
   },
   props: {
@@ -226,7 +227,9 @@ export default {
     },
     onReaderLoad: function(event) {
       const annotationsList = JSON.parse(event.target.result);
+      this.importing = true;
       this.$refs.scaffold.importLocalAnnotations(annotationsList);
+      this.importing = false;
     },
     importLocalAnnotations: function() {
       const selectedFile = document.getElementById("annotations-upload").files[0];
@@ -237,6 +240,8 @@ export default {
     objectAdded: function (zincObject) {
       if (!zincObject.isLines2) {
         this._pickableObjects.push(zincObject);
+      } else {
+        this.userPrimitivesUpdated({zincObject});
       }
     },
     screenCapture: function () {
@@ -315,12 +320,12 @@ export default {
     userPrimitivesUpdated: function (payload) {
       if (this.consoleOn) console.log("userPrimitivesUpdated", payload);
       const zincObject = payload.zincObject;
-      if (zincObject.isEditable && zincObject.isLines2) {
+      if ((zincObject.isEditable ||  this.importing) && zincObject.isLines2) {
         //Call the following to set the camera       
         const scene = this.$refs.scaffold.$module.scene;
         const camera = scene.getZincCameraControls();
-        this._rayCaster.getIntersectsObjectWithCamera(camera, 0, 0);
         if (this._rayCaster) {
+          this._rayCaster.getIntersectsObjectWithCamera(camera, 0, 0);
           for (let i = 0; i * 2 < zincObject.drawRange; i++) {
             const v = zincObject.getVerticesByFaceIndex(i);
             let d = [v[1][0] - v[0][0], v[1][1] - v[0][1], v[1][2] - v[0][2]];
