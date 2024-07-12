@@ -37,7 +37,7 @@ Scaffoldvuer is available on npm and can be installed into your project with the
 npm i @abi-software/tara-scaffoldvuer
 ```
 
-## How to use
+## How to integrate With Your Vue App
 Install the package in your vue app project with the following command "npm i @abi-software/tara-scaffoldvuer".
 Import the package in your script as followed:
 ```javascript
