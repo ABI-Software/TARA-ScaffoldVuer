@@ -1,51 +1,31 @@
-# Vue Component Template
+# TARA ScaffoldVuer
 
-Base template to create new Vue component.
+Specific tool for creating acupuncture points and needles.
 
-This template includes:
+## How to use
 
-- `VueComponentTemplate` component in `src/components`
-- API documentation in `docs` using `vitepress`
-- Cypress component testing for `VueComponentTemplate` component in `cypress/component`
-- GitHub Actions for API documentation and Cypress component testing
-- ESLint for `.js` and `.vue` files in `src`
+### Creating Points
 
+1. Turn on Quick Edit at the top right corner
+2. Click on a desired location on the surface
+3. A dialog will appear, enter the region and group name then press confirm to create a point.
 
-## Usage
+### Creating Needles
+1. Click on user created points.
+2. A temporary lines normal to the nearest surface and a dialog will also appear, enter the region and group name then press confirm to create a line.
 
-1. Create a new repository using this template *(choose repository template when creating a new repo on GitHub and select this template)*.
-2. Update component name `VueComponentTemplate` to `YourComponentName`. (See [Updating Component Names](#Updating-Component-Names) for details).
-3. Configure GitHub page for API documentation *(Settings > GitHub Pages > Build and deployment > Change "Deploy from a branch" to "GitHub Actions")*.
-4. Run `npm install`.
-5. Run `npm run serve` for development.
-6. Run `npm run build-bundle` for production build to create bundle.
-7. Run `npm run lint` for ESLint.
+### Modifying Needles
+1. Needles can be lengthened/shortened and move using the primitives control.
+2. The control for the needles can be bought up after clicking on the corresponding item in the tree widget on the left.
 
-### Updating Component Names
+### Displaying needles information
+1. Needles information can be viewed by pressing on the Display Needles Informaion button on the top right.
+2. Currently avaialable information include the name of objects in contact, distancce between the head and contact points, and coordinates of the contact point is currently 
 
-1. If you are using VSCode, `[Ctrl + Shift + F]` or `[Cmd + Shift + F]` from the root directory, search for "**vue-component-template**" and replace it with your new component name.
-
-2. Do the same way for "**VueComponentTemplate**".
-
-3. Rename `src/components/VueComponentTemplate.vue` and `cypress/component/VueComponentTemplate.cy.js` to your new component name.
-
-
-## API Documentation
-
-The API documentation is developed with `vitepress` and `vuese`. Documentation pages are in the `docs` folder.
+### Import And Export Points and Needles
+1. Points and Needles can be imported and exported using the Import / Export button on the top right. 
 
 ### To run in local development mode
 ```bash
-npm run docs:watch
+npm run serve
 ```
-
-This will start the documentation server with `vitepress` on port `:5173` and watch the components' changes.
-
-
-## Vue 3 + Vite
-
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
-
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (previously Volar) and disable Vetur

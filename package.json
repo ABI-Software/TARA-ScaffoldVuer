@@ -1,11 +1,12 @@
 {
-  "name": "vue-component-template",
+  "name": "@abi-software/TARA-ScaffoldVuer",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "type": "module",
   "scripts": {
-    "serve": "vite --host",
+    "serve": "vite --host --force",
     "build-bundle": "vite build",
+    "build-static": "vite build -c vite.static-build.js",
     "preview": "vite preview",
     "lint": "eslint src",
     "changelog": "auto-changelog -p --output CHANGELOG.md --template keepachangelog",
@@ -27,16 +28,21 @@
     "*.json",
     "*.js"
   ],
-  "main": "./dist/vue-component-template.umd.cjs",
-  "module": "./dist/vue-component-template.js",
+  "main": "./dist/tara-scaffoldvuer.umd.cjs",
+  "module": "./dist/tara-scaffoldvuer.js",
   "exports": {
     ".": {
-      "import": "./dist/vue-component-template.js",
-      "require": "./dist/vue-component-template.umd.cjs"
+      "import": "./dist/tara-scaffoldvuer.js",
+      "require": "./dist/tara-scaffoldvuer.cjs"
     },
     "./dist/style.css": "./dist/style.css"
   },
   "dependencies": {
+    "@abi-software/map-utilities": "1.0.0",
+    "@abi-software/scaffoldvuer": "^1.3.2",
+    "element-plus": "^2.7.5",
+    "pinia": "^2.1.7",
+    "vite-plugin-node-polyfills": "^0.22.0",
     "vue": "^3.4.21"
   },
   "devDependencies": {
