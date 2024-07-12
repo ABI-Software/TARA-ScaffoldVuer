@@ -29,3 +29,37 @@ Specific tool for creating acupuncture points and needles.
 ```bash
 npm run serve
 ```
+
+## TARA ScaffoldVuer on NPM
+
+Scaffoldvuer is available on npm and can be installed into your project with the following command:
+```bash
+npm i @abi-software/tara-scaffoldvuer
+```
+
+## How to use
+Install the package in your vue app project with the following command "npm i @abi-software/scaffoldvuer".
+Import the package in your script as followed:
+```javascript
+<script setup>
+import { TaraScaffoldVuer } from '@abi-software/tara-scaffoldvuer';
+import "@abi-software/tara-scaffoldvuer/dist/style.css";
+</script>
+
+<template>
+  <div id="app">
+    <TaraScaffoldVuer :url="url"/>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "app",
+  data: function () {
+    return {
+      url: "Some URL"
+    }
+  }
+}
+</script>
+```
