@@ -1,6 +1,5 @@
 {
   "name": "@abi-software/TARA-ScaffoldVuer",
-  "private": true,
   "version": "0.1.0-beta.0",
   "type": "module",
   "scripts": {
