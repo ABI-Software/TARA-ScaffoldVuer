@@ -38,7 +38,7 @@ npm i @abi-software/tara-scaffoldvuer
 ```
 
 ## How to use
-Install the package in your vue app project with the following command "npm i @abi-software/scaffoldvuer".
+Install the package in your vue app project with the following command "npm i @abi-software/tara-scaffoldvuer".
 Import the package in your script as followed:
 ```javascript
 <script setup>
