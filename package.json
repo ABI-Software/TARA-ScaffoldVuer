@@ -1,7 +1,6 @@
 {
-  "name": "@abi-software/TARA-ScaffoldVuer",
-  "private": true,
-  "version": "0.1.0-beta.0",
+  "name": "@abi-software/tara-scaffoldvuer",
+  "version": "0.1.0-beta.1",
   "type": "module",
   "scripts": {
     "serve": "vite --host --force",
@@ -28,12 +27,12 @@
     "*.json",
     "*.js"
   ],
-  "main": "./dist/tara-scaffoldvuer.umd.cjs",
-  "module": "./dist/tara-scaffoldvuer.js",
+  "main": "./dist/TaraScaffoldVuer.umd.cjs",
+  "module": "./dist/TaraScaffoldVuer.js",
   "exports": {
     ".": {
-      "import": "./dist/tara-scaffoldvuer.js",
-      "require": "./dist/tara-scaffoldvuer.cjs"
+      "import": "./dist/TaraScaffoldVuer.js",
+      "require": "./dist/TaraScaffoldVuer.umd.cjs"
     },
     "./dist/style.css": "./dist/style.css"
   },
