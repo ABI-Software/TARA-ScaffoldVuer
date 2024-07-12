@@ -1,11 +1,12 @@
 {
   "name": "@abi-software/TARA-ScaffoldVuer",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.0-beta.0",
   "type": "module",
   "scripts": {
     "serve": "vite --host --force",
     "build-bundle": "vite build",
+    "build-static": "vite build -c vite.static-build.js",
     "preview": "vite preview",
     "lint": "eslint src",
     "changelog": "auto-changelog -p --output CHANGELOG.md --template keepachangelog",

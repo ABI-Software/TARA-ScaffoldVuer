@@ -11,15 +11,15 @@
           </el-button>
         </el-col>
         <el-col :span="auto">
-            <el-button size="small" :icon="ElIconFolderOpened">
-              <label for="annotations-upload">Import Annotations</label>
-              <input
-                id="annotations-upload"
-                type="file"
-                accept="application/json"
-                @change="importLocalAnnotations" 
-              />
-            </el-button>
+          <el-button size="small" :icon="ElIconFolderOpened">
+            <label for="annotations-upload">Import Annotations</label>
+            <input
+              id="annotations-upload"
+              type="file"
+              accept="application/json"
+              @change="importLocalAnnotations" 
+            />
+          </el-button>
         </el-col>
       </el-row>
       <el-row :gutter="20" justify="center" align="middle">
