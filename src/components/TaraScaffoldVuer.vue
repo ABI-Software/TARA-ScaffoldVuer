@@ -1,57 +1,83 @@
 <template>
   <div class="scaffold-container">
     <div class="settings-panels">
-      <el-row :gutter="20" justify="center" align="middle">
-        <el-col :span="auto">
-          <el-button
-            size="small"
-            :icon="ElIconFolderOpened"
-            @click="exportLocalAnnotations()">
-            Export Annotations
-          </el-button>
-        </el-col>
-        <el-col :span="auto">
-          <el-button size="small" :icon="ElIconFolderOpened">
-            <label for="annotations-upload">Import Annotations</label>
-            <input
-              id="annotations-upload"
-              type="file"
-              accept="application/json"
-              @change="importLocalAnnotations" 
-            />
-          </el-button>
-        </el-col>
-      </el-row>
-      <el-row :gutter="20" justify="center" align="middle">
-        <el-col :span="12">
-          Quick Edit
-        </el-col>
-        <el-col :span="6">
-          <el-switch
-            v-model="quickEditOn"
-            :active-action-icon="ElIconEditPen"
-            :inactive-action-icon="ElIconEditPen"
-          />
-        </el-col>
-      </el-row>
-      <el-row :gutter="20" justify="center" align="middle">
-        <el-popover placement="bottom" trigger="manual" :visible="infoVisible" width="550" popper-class="table-popover" :teleported="false">
-          <template #default>
-            <NeedlesTable :needlesInfo="needlesInfo" />
-          </template>
-          <template #reference>
+      <template v-if="acupointsViewer">
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
             <el-button
               size="small"
-              class="needles-button"
-              @click="infoVisible = !infoVisible"
-              :icon="ElIconDataAnalysis"
-            >
-              {{ infoVisible ? "Hide Needles Info" : "Display Needles Info"}}
+              @click="displayLabels()">
+              Display labels
             </el-button>
-          </template>
-        </el-popover>
-      </el-row>
+          </el-col>
+        </el-row>
+      </template>
+      <template v-else>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
+            <el-button
+              size="small"
+              :icon="ElIconFolderOpened"
+              @click="exportLocalAnnotations()">
+              Export Annotations
+            </el-button>
+          </el-col>
+          <el-col :span="auto">
+            <el-button size="small" :icon="ElIconFolderOpened">
+              <label for="annotations-upload">Import Annotations</label>
+              <input
+                id="annotations-upload"
+                type="file"
+                accept="application/json"
+                @change="importLocalAnnotations" 
+              />
+            </el-button>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="12">
+            Quick Edit
+          </el-col>
+          <el-col :span="6">
+            <el-switch
+              v-model="quickEditOn"
+              :active-action-icon="ElIconEditPen"
+              :inactive-action-icon="ElIconEditPen"
+            />
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-popover placement="bottom" trigger="manual" :visible="infoVisible" width="550" popper-class="table-popover" :teleported="false">
+            <template #default>
+              <NeedlesTable :needlesInfo="needlesInfo" />
+            </template>
+            <template #reference>
+              <el-button
+                size="small"
+                class="needles-button"
+                @click="infoVisible = !infoVisible"
+                :icon="ElIconDataAnalysis"
+              >
+                {{ infoVisible ? "Hide Needles Info" : "Display Needles Info"}}
+              </el-button>
+            </template>
+          </el-popover>
+        </el-row>
+      </template>
     </div>
+    <SideBar
+      v-if="acupoints"
+      ref="sideBar"
+      class="side-bar"
+      :envVars="envVars"
+      :visible="true"
+      :activeTabId="1"
+      :tabs="sidebarTabs"
+      :open-at-start="true"
+      :acupointsInfoList="acupoints"
+      @acupoints-clicked="onAcupointsClicked"
+      @acupoints-hovered="onAcupointsHovered"
+    />
     <ScaffoldVuer
       v-if="url"
       ref="scaffold"
@@ -64,21 +90,23 @@
       :enableOpenMapUI="false"
       :enableLocalAnnotations="true"
       :marker-cluster="false"
-      :show-colour-picker="showColourPicker"
+      :show-colour-picker="false"
       :render="true"
       @on-ready="onReady"
       @scaffold-selected="onSelected"
       @user-primitives-updated="userPrimitivesUpdated"
       @zinc-object-added="objectAdded"
-      @vue:mounted="viewerMounted"
     />
   </div>
 </template>
 
 <script>
 /* eslint-disable no-alert, no-console */
-import { shallowRef } from 'vue';
+import { markRaw, shallowRef } from 'vue';
 import NeedlesTable from "./NeedlesTable.vue";
+import { SideBar } from "@abi-software/map-side-bar";
+import "@abi-software/map-side-bar/dist/style.css";
+//import { acupointEntries } from './acupoints.js'
 import { ScaffoldVuer } from "@abi-software/scaffoldvuer";
 import "@abi-software/scaffoldvuer/dist/style.css";
 import {
@@ -149,6 +177,17 @@ const findNearbyPoints = (data, tolerance) => {
 const v1 = new THREE.Vector3();
 const v2 = new THREE.Vector3();
 
+const convertToPrimitivesName = original => {
+  const name = original.replace(" ", "");
+  return [`${name} left`, `${name} right`];
+}
+
+const convertFromPrimitivesName = original => {
+  let name = original.substring(0, original.indexOf(" "));
+  name = `${name.substring(0, 2)} ${name.substring(2, 4)}`
+  return name;
+}
+
 export default {
   name: "TaraScaffoldVuer",
   components: {
@@ -164,9 +203,14 @@ export default {
     ElIconFolderOpened,
     NeedlesTable,
     ScaffoldVuer,
+    SideBar,
   },
   data: function () {
     return {
+      acupoints: undefined,
+      acupointsViewer: true,
+      acupointsLabelOn: false,
+      glyphs: markRaw([]),
       quickEditOn: false,
       displayUI: true,
       ElIconEditPen: shallowRef(ElIconEditPen),
@@ -176,6 +220,21 @@ export default {
       needlesInfo: {},
       infoVisible: false,
       importing: false,
+      sidebarTabs: [
+        {title: 'Acupoints', id: 1, type: 'acupoints' },
+      ],
+      envVars: {
+        API_LOCATION: import.meta.env.VITE_APP_API_LOCATION,
+        ALGOLIA_KEY: import.meta.env.VITE_APP_ALGOLIA_KEY,
+        ALGOLIA_ID: import.meta.env.VITE_APP_ALGOLIA_ID,
+        ALGOLIA_INDEX: import.meta.env.VITE_APP_ALGOLIA_INDEX,
+        PENNSIEVE_API_LOCATION: import.meta.env.VITE_APP_PENNSIEVE_API_LOCATION,
+        BL_SERVER_URL: import.meta.env.VITE_APP_BL_SERVER_URL,
+        NL_LINK_PREFIX: import.meta.env.VITE_APP_NL_LINK_PREFIX,
+        ROOT_URL: import.meta.env.VITE_APP_ROOT_URL,
+        FLATMAPAPI_LOCATION: import.meta.env.VITE_FLATMAPAPI_LOCATION,
+      },
+      
     };
   },
   props: {
@@ -185,11 +244,15 @@ export default {
     },    
     url: {
       type: String,
-      default: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/texture/arm1/arm_metadata.json",
+      default: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/tara/whole_body-30-1-25/human_body_acupoints_metadata.json",
     },
     pointTolerance: {
       type: Number,
       default: 20,
+    },
+    acupointsEndpoint: {
+      type: String,
+      default: "",
     }
   },
   watch: {
@@ -218,8 +281,36 @@ export default {
       undefined,
       undefined,
     );
+    if (this.acupointsEndpoint) {
+      fetch(this.acupointsEndpoint).then(response => {
+        this.acupoints = response.json();
+      });
+    }
   },
   methods: {
+    displayLabels: function() {
+      if (this.acupointsLabelOn) {
+        this.glyphs.forEach(glyph => glyph.hideLabel());
+        this.acupointsLabelOn = false;
+      } else {
+        this.glyphs.forEach(glyph => glyph.showLabel());
+        this.acupointsLabelOn = true;
+      }
+    },
+    onAcupointsClicked: function (data) {
+      let names = undefined;
+      if (data?.Acupoint) {
+        names = convertToPrimitivesName(data.Acupoint);
+      }
+      this.$refs.scaffold.changeActiveByName(names, "", false);
+    },
+    onAcupointsHovered: function (data) {
+      let names = undefined;
+      if (data?.Acupoint) {
+        names = convertToPrimitivesName(data.Acupoint);
+      }
+      this.$refs.scaffold.changeHighlightedByName(names, "", false);
+    },
     exportLocalAnnotations: function() {
       const annotations = this.$refs.scaffold.getLocalAnnotations();
       const filename = 'scaffoldAnnotations' + JSON.stringify(new Date()) + '.json';
@@ -240,6 +331,10 @@ export default {
     objectAdded: function (zincObject) {
       if (!zincObject.isLines2) {
         this._pickableObjects.push(zincObject);
+        if (zincObject.isGlyphset) {
+          zincObject.setScaleAll(2);
+          this.glyphs.push(zincObject);
+        }
       } else {
         this.userPrimitivesUpdated({zincObject});
       }
@@ -314,6 +409,11 @@ export default {
           } else if (data[0].extraData.intersected?.face) {
             this.addPoint(data, data[0].extraData.worldCoords);
           }
+        } else {
+          if (data && data.length > 0 && data[0].data.group) {
+            const label = convertFromPrimitivesName(data[0].data.group);
+            this.$refs.sideBar.openAcupointsSearch(label)
+          }
         }
       }
     },
@@ -371,7 +471,7 @@ input[type="file"] {
 
 .settings-panels {
   z-index:10000;
-  right:0px;
+  left:0px;
   position:absolute;
   text-align: center;
   background-color: rgba(255, 255, 255, 0.5);

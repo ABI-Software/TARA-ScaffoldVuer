@@ -4,7 +4,7 @@ import TaraScaffoldVuer from './components/TaraScaffoldVuer.vue';
 
 <template>
   <div id="app">
-    <TaraScaffoldVuer :url="url" :console-on="false"/>
+    <TaraScaffoldVuer :url="url" :acupoints-endpoint="acupoints" :console-on="false"/>
   </div>
 </template>
 
@@ -13,7 +13,8 @@ export default {
   name: "app",
   data: function () {
     return {
-      url: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/texture/arm1/arm_metadata.json"
+      url: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/tara/whole_body-30-1-25/human_body_acupoints_metadata.json",
+      acupoints: import.meta.env.VITE_ACUPOINTS_API,
     }
   }
 }
