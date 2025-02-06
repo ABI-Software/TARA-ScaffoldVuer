@@ -354,7 +354,7 @@ export default {
                 const converted = convertFromPrimitivesName(glyph.groupName);
                 for (let i = 0; i < keys.length; i++) {
                   if (converted.toLowerCase() === keys[i].toLowerCase()) {
-                    filtered[keys] = json[keys];
+                    filtered[keys[i]] = json[keys[i]];
                     break;
                   }
                 }
