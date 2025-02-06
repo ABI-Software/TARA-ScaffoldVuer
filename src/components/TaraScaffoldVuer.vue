@@ -281,11 +281,6 @@ export default {
       undefined,
       undefined,
     );
-    if (this.acupointsEndpoint) {
-      fetch(this.acupointsEndpoint).then(response => {
-        this.acupoints = response.json();
-      });
-    }
   },
   methods: {
     displayLabels: function() {
@@ -348,6 +343,26 @@ export default {
       const d = bounds.max.distanceTo( bounds.min );
       this._createLinesLength = d / 6.0;
       if (this.consoleOn) console.log("Lines length", this._createLinesLength);
+      if (this.acupointsEndpoint) {
+        fetch(this.acupointsEndpoint)
+          .then(response => response.json())
+          .then((json) => {
+            const filtered = {};
+            const keys = Object.keys(json);
+            this.glyphs.forEach((glyph) => { 
+              if (glyph.groupName) {
+                const converted = convertFromPrimitivesName(glyph.groupName);
+                for (let i = 0; i < keys.length; i++) {
+                  if (converted.toLowerCase() === keys[i].toLowerCase()) {
+                    filtered[keys] = json[keys];
+                    break;
+                  }
+                }
+              }
+            });
+            this.acupoints = filtered;
+          });
+      }
     },
     addLinesWithNormal: function (data, coord, normal) {
       const myViewer = this.$refs.scaffold;
