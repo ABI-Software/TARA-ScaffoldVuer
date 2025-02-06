@@ -360,6 +360,7 @@ export default {
                 }
               }
             });
+            console.log(Object.keys(filtered).length)
             this.acupoints = filtered;
           });
       }

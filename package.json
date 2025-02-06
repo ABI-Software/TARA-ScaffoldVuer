@@ -37,7 +37,7 @@
     "./dist/style.css": "./dist/style.css"
   },
   "dependencies": {
-    "@abi-software/map-side-bar": "^2.6.3-acupoints.0",
+    "@abi-software/map-side-bar": "^2.6.3-acupoints.1",
     "@abi-software/map-utilities": "1.3.2",
     "@abi-software/scaffoldvuer": "^1.8.0-beta.2",
     "element-plus": "^2.7.5",
