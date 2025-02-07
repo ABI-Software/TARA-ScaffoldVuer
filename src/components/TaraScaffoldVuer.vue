@@ -11,6 +11,24 @@
             </el-button>
           </el-col>
         </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
+            <el-button
+              size="small"
+              @click="frontView()">
+              Front view
+            </el-button>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
+            <el-button
+              size="small"
+              @click="backView()">
+              Back view
+            </el-button>
+          </el-col>
+        </el-row>
       </template>
       <template v-else>
         <el-row :gutter="20" justify="center" align="middle">
@@ -188,6 +206,26 @@ const convertFromPrimitivesName = original => {
   return name;
 }
 
+const backViewport = {
+    "nearPlane": 1.5013817389693542,
+    "farPlane": 15013.81125645484,
+    "eyePosition": [
+        -79.66697327672085,
+        4502.629849904295,
+        753.9406181930069
+    ],
+    "targetPosition": [
+        -1.0555419921875,
+        -102.07274055480957,
+        782.4486846923828
+    ],
+    "upVector": [
+        0.00913897460936149,
+        0.006346713837116281,
+        0.9999380972673397
+    ]
+};
+
 export default {
   name: "TaraScaffoldVuer",
   components: {
@@ -291,6 +329,14 @@ export default {
         this.glyphs.forEach(glyph => glyph.showLabel());
         this.acupointsLabelOn = true;
       }
+    },
+    frontView: function() {
+      const control  = this.$refs.scaffold.$module.scene.getZincCameraControls();
+      control.resetView();
+    },
+    backView: function() {
+      const control  = this.$refs.scaffold.$module.scene.getZincCameraControls();
+      control.setCurrentCameraSettings(backViewport);
     },
     onAcupointsClicked: function (data) {
       let names = undefined;
