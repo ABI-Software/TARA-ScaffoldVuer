@@ -122,6 +122,7 @@
 /* eslint-disable no-alert, no-console */
 import { markRaw, shallowRef } from 'vue';
 import NeedlesTable from "./NeedlesTable.vue";
+import { readNIFTIFromURL } from "./niftiReader.js"
 import { SideBar } from "@abi-software/map-side-bar";
 import "@abi-software/map-side-bar/dist/style.css";
 //import { acupointEntries } from './acupoints.js'
@@ -383,7 +384,7 @@ export default {
     screenCapture: function () {
       this.$refs.scaffold.captureScreenshot("capture.png");
     },
-    onReady: function () {
+    onReady: async function () {
       const viewer = this.$refs.scaffold;
       const bounds = viewer.$module.scene.getBoundingBox();
       const d = bounds.max.distanceTo( bounds.min );
@@ -406,10 +407,12 @@ export default {
                 }
               }
             });
-            console.log(Object.keys(filtered).length)
             this.acupoints = filtered;
           });
       }
+      const Zinc = this.$refs.scaffold.$module.Zinc;
+      const newTexture = await readNIFTIFromURL(Zinc, "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/tara/whole_body-30-1-25/body_seg.nii.gz")
+      viewer.$module.scene.addZincObject(newTexture);
     },
     addLinesWithNormal: function (data, coord, normal) {
       const myViewer = this.$refs.scaffold;
