@@ -292,7 +292,11 @@ export default {
     acupointsEndpoint: {
       type: String,
       default: "",
-    }
+    },
+    textureUrl: {
+      type: String,
+      default: "",
+    },
   },
   watch: {
     helpMode: function (newVal) {
@@ -411,8 +415,10 @@ export default {
           });
       }
       const Zinc = this.$refs.scaffold.$module.Zinc;
-      const newTexture = await readNIFTIFromURL(Zinc, "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/tara/whole_body-30-1-25/body_seg.nii.gz")
-      viewer.$module.scene.addZincObject(newTexture);
+      if (this.textureUrl) {
+        const newTexture = await readNIFTIFromURL(Zinc, this.textureUrl);
+        viewer.$module.scene.addZincObject(newTexture);
+      }
     },
     addLinesWithNormal: function (data, coord, normal) {
       const myViewer = this.$refs.scaffold;
