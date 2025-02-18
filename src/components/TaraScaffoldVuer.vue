@@ -1,5 +1,5 @@
 <template>
-  <div class="scaffold-container">
+  <div class="scaffold-container" ref="taraContainer">
     <div class="settings-panels">
       <template v-if="acupointsViewer">
         <el-row :gutter="20" justify="center" align="middle">
@@ -121,6 +121,7 @@
 <script>
 /* eslint-disable no-alert, no-console */
 import { markRaw, shallowRef } from 'vue';
+import { ElMessage } from 'element-plus'
 import NeedlesTable from "./NeedlesTable.vue";
 import { readNIFTIFromURL } from "./niftiReader.js"
 import { SideBar } from "@abi-software/map-side-bar";
@@ -136,6 +137,7 @@ import {
 import {
   ElButton as Button,
   ElCol as Col,
+  ElMessage as Message,
   ElIcon as Icon,
   ElInput as Input,
   ElInputNumber as InputNumber,
@@ -146,6 +148,7 @@ import {
 import {
   THREE
 } from "zincjs";
+import 'element-plus/es/components/message/style/css'; // this is only needed if the page also used ElMessage
 
 const writeTextFile = (filename, data) => {
   let dataStr =
@@ -273,6 +276,10 @@ export default {
         ROOT_URL: import.meta.env.VITE_APP_ROOT_URL,
         FLATMAPAPI_LOCATION: import.meta.env.VITE_FLATMAPAPI_LOCATION,
       },
+      messageSettings: {
+        duration: 0,
+        message: "Downloading Texture"
+      }
       
     };
   },
@@ -416,8 +423,33 @@ export default {
       }
       const Zinc = this.$refs.scaffold.$module.Zinc;
       if (this.textureUrl) {
+        const ele = this.$refs.taraContainer;
+        const original = ElMessage({
+          message: 'Texture loading: In progress',
+          showClose: true,
+          duration: 0,
+          appendTo: ele,
+        });
         const newTexture = await readNIFTIFromURL(Zinc, this.textureUrl);
-        viewer.$module.scene.addZincObject(newTexture);
+        if (newTexture) {
+          ElMessage({
+            message: 'Texture loaded Successfully',
+            showClose: true,
+            duration: 6000,
+            type: "success",
+            appendTo: ele,
+          });
+          viewer.$module.scene.addZincObject(newTexture);
+        } else {
+          ElMessage({
+            message: 'Unable to load texture',
+            showClose: true,
+            duration: 6000,
+            type: "error",
+            appendTo: ele,
+          });
+        }
+        original.close();
       }
     },
     addLinesWithNormal: function (data, coord, normal) {
@@ -483,7 +515,9 @@ export default {
         } else {
           if (data && data.length > 0 && data[0].data.group) {
             const label = convertFromPrimitivesName(data[0].data.group);
-            this.$refs.sideBar.openAcupointsSearch(label)
+            if (label && this.$refs.sideBar) {
+              this.$refs.sideBar.openAcupointsSearch(label);
+            }
           }
         }
       }
