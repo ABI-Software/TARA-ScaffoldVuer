@@ -515,7 +515,7 @@ export default {
         } else {
           if (data && data.length > 0 && data[0].data.group) {
             const label = convertFromPrimitivesName(data[0].data.group);
-            if (label && this.$refs.sideBar) {
+            if (label && label.trim() && this.$refs.sideBar) {
               this.$refs.sideBar.openAcupointsSearch(label);
             }
           }
