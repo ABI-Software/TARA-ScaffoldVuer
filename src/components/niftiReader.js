@@ -9,10 +9,10 @@ const textureData = {
       {
           "identifier": 1,
           "label": "original",
-          "orientation": [-1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 1.0],
-          "position": [215, 100, 1125],
-          "scale": [450, 450, 230],
-          "flipY": true,
+          "orientation": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+          "position": [-283, -363, 1090],
+          "scale": [540, 540, 276],
+          "flipY": false,
           "reference_point": "corner"
       }
   ],
@@ -120,8 +120,10 @@ const createTexturePrimitives = (Zinc, sources) => {
     tArray.impl.needsUpdate = true;
     console.log(tArray.isReady())
     newTexture.groupName = "Images";
+    newTexture.morph.renderOrder = 1;
     newTexture.texture = tArray;
     newTexture.initialise(textureData, undefined);
+    newTexture.showEdges(0x000000);
     return newTexture;
   }
   return undefined;

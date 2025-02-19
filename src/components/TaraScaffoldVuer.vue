@@ -387,6 +387,11 @@ export default {
         if (zincObject.isGlyphset) {
           zincObject.setScaleAll(2);
           this.glyphs.push(zincObject);
+        } else {
+          if (zincObject.groupName === "undefined" &&
+            zincObject._lod?._material?.side) {
+            zincObject._lod._material.side =  THREE.FrontSide;
+          }
         }
       } else {
         this.userPrimitivesUpdated({zincObject});
@@ -425,7 +430,7 @@ export default {
       if (this.textureUrl) {
         const ele = this.$refs.taraContainer;
         const original = ElMessage({
-          message: 'Texture loading: In progress',
+          message: 'Downloading texture',
           showClose: true,
           duration: 0,
           appendTo: ele,
@@ -439,6 +444,7 @@ export default {
             type: "success",
             appendTo: ele,
           });
+          original.close();
           viewer.$module.scene.addZincObject(newTexture);
         } else {
           ElMessage({
@@ -448,8 +454,8 @@ export default {
             type: "error",
             appendTo: ele,
           });
+          original.close();
         }
-        original.close();
       }
     },
     addLinesWithNormal: function (data, coord, normal) {
