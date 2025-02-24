@@ -73,7 +73,11 @@ const createSources = (niftiHeader, niftiImage) => {
           fullArray[offset * 4] = value;
           fullArray[offset* 4 + 1] = value;
           fullArray[offset* 4 + 2] = value;
-          fullArray[offset * 4 + 3] = 255;
+          if (value === 255) {
+            fullArray[offset * 4 + 3] = 0;
+          } else {
+            fullArray[offset * 4 + 3] = 255;
+          }
         }
       }
     }
