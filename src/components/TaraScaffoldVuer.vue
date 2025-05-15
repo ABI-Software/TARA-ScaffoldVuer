@@ -250,7 +250,6 @@ export default {
   data: function () {
     return {
       acupoints: undefined,
-      acupointsViewer: true,
       acupointsLabelOn: false,
       glyphs: markRaw([]),
       quickEditOn: false,
@@ -299,6 +298,10 @@ export default {
     acupointsEndpoint: {
       type: String,
       default: "",
+    },
+    acupointsViewer: {
+      type: Boolean,
+      default: false,
     },
     textureUrl: {
       type: String,
@@ -365,14 +368,14 @@ export default {
       this.$refs.scaffold.changeHighlightedByName(names, "", false);
     },
     exportLocalAnnotations: function() {
-      const annotations = this.$refs.scaffold.getLocalAnnotations();
+      const annotations = this.$refs.scaffold.getOfflineAnnotations();
       const filename = 'scaffoldAnnotations' + JSON.stringify(new Date()) + '.json';
       writeTextFile(filename, annotations);
     },
     onReaderLoad: function(event) {
       const annotationsList = JSON.parse(event.target.result);
       this.importing = true;
-      this.$refs.scaffold.importLocalAnnotations(annotationsList);
+      this.$refs.scaffold.importOfflineAnnotations(annotationsList);
       this.importing = false;
     },
     importLocalAnnotations: function() {
