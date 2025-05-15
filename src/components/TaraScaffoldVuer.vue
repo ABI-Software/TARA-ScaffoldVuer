@@ -1,57 +1,101 @@
 <template>
-  <div class="scaffold-container">
+  <div class="scaffold-container" ref="taraContainer">
     <div class="settings-panels">
-      <el-row :gutter="20" justify="center" align="middle">
-        <el-col :span="auto">
-          <el-button
-            size="small"
-            :icon="ElIconFolderOpened"
-            @click="exportLocalAnnotations()">
-            Export Annotations
-          </el-button>
-        </el-col>
-        <el-col :span="auto">
-          <el-button size="small" :icon="ElIconFolderOpened">
-            <label for="annotations-upload">Import Annotations</label>
-            <input
-              id="annotations-upload"
-              type="file"
-              accept="application/json"
-              @change="importLocalAnnotations" 
-            />
-          </el-button>
-        </el-col>
-      </el-row>
-      <el-row :gutter="20" justify="center" align="middle">
-        <el-col :span="12">
-          Quick Edit
-        </el-col>
-        <el-col :span="6">
-          <el-switch
-            v-model="quickEditOn"
-            :active-action-icon="ElIconEditPen"
-            :inactive-action-icon="ElIconEditPen"
-          />
-        </el-col>
-      </el-row>
-      <el-row :gutter="20" justify="center" align="middle">
-        <el-popover placement="bottom" trigger="manual" :visible="infoVisible" width="550" popper-class="table-popover" :teleported="false">
-          <template #default>
-            <NeedlesTable :needlesInfo="needlesInfo" />
-          </template>
-          <template #reference>
+      <template v-if="acupointsViewer">
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
             <el-button
               size="small"
-              class="needles-button"
-              @click="infoVisible = !infoVisible"
-              :icon="ElIconDataAnalysis"
-            >
-              {{ infoVisible ? "Hide Needles Info" : "Display Needles Info"}}
+              @click="displayLabels()">
+              Display labels
             </el-button>
-          </template>
-        </el-popover>
-      </el-row>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
+            <el-button
+              size="small"
+              @click="frontView()">
+              Front view
+            </el-button>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
+            <el-button
+              size="small"
+              @click="backView()">
+              Back view
+            </el-button>
+          </el-col>
+        </el-row>
+      </template>
+      <template v-else>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="auto">
+            <el-button
+              size="small"
+              :icon="ElIconFolderOpened"
+              @click="exportLocalAnnotations()">
+              Export Annotations
+            </el-button>
+          </el-col>
+          <el-col :span="auto">
+            <el-button size="small" :icon="ElIconFolderOpened">
+              <label for="annotations-upload">Import Annotations</label>
+              <input
+                id="annotations-upload"
+                type="file"
+                accept="application/json"
+                @change="importLocalAnnotations" 
+              />
+            </el-button>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-col :span="12">
+            Quick Edit
+          </el-col>
+          <el-col :span="6">
+            <el-switch
+              v-model="quickEditOn"
+              :active-action-icon="ElIconEditPen"
+              :inactive-action-icon="ElIconEditPen"
+            />
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" justify="center" align="middle">
+          <el-popover placement="bottom" trigger="manual" :visible="infoVisible" width="550" popper-class="table-popover" :teleported="false">
+            <template #default>
+              <NeedlesTable :needlesInfo="needlesInfo" />
+            </template>
+            <template #reference>
+              <el-button
+                size="small"
+                class="needles-button"
+                @click="infoVisible = !infoVisible"
+                :icon="ElIconDataAnalysis"
+              >
+                {{ infoVisible ? "Hide Needles Info" : "Display Needles Info"}}
+              </el-button>
+            </template>
+          </el-popover>
+        </el-row>
+      </template>
     </div>
+    <SideBar
+      v-if="acupoints"
+      ref="sideBar"
+      class="side-bar"
+      :envVars="envVars"
+      :visible="true"
+      :activeTabId="1"
+      :tabs="sidebarTabs"
+      :open-at-start="true"
+      :acupointsInfoList="acupoints"
+      @acupoints-clicked="onAcupointsClicked"
+      @acupoints-hovered="onAcupointsHovered"
+    />
     <ScaffoldVuer
       v-if="url"
       ref="scaffold"
@@ -64,21 +108,25 @@
       :enableOpenMapUI="false"
       :enableLocalAnnotations="true"
       :marker-cluster="false"
-      :show-colour-picker="showColourPicker"
+      :show-colour-picker="false"
       :render="true"
       @on-ready="onReady"
       @scaffold-selected="onSelected"
       @user-primitives-updated="userPrimitivesUpdated"
       @zinc-object-added="objectAdded"
-      @vue:mounted="viewerMounted"
     />
   </div>
 </template>
 
 <script>
 /* eslint-disable no-alert, no-console */
-import { shallowRef } from 'vue';
+import { markRaw, shallowRef } from 'vue';
+import { ElMessage } from 'element-plus'
 import NeedlesTable from "./NeedlesTable.vue";
+import { readNIFTIFromURL } from "./niftiReader.js"
+import { SideBar } from "@abi-software/map-side-bar";
+import "@abi-software/map-side-bar/dist/style.css";
+//import { acupointEntries } from './acupoints.js'
 import { ScaffoldVuer } from "@abi-software/scaffoldvuer";
 import "@abi-software/scaffoldvuer/dist/style.css";
 import {
@@ -89,6 +137,7 @@ import {
 import {
   ElButton as Button,
   ElCol as Col,
+  ElMessage as Message,
   ElIcon as Icon,
   ElInput as Input,
   ElInputNumber as InputNumber,
@@ -99,6 +148,7 @@ import {
 import {
   THREE
 } from "zincjs";
+import 'element-plus/es/components/message/style/css'; // this is only needed if the page also used ElMessage
 
 const writeTextFile = (filename, data) => {
   let dataStr =
@@ -149,6 +199,37 @@ const findNearbyPoints = (data, tolerance) => {
 const v1 = new THREE.Vector3();
 const v2 = new THREE.Vector3();
 
+const convertToPrimitivesName = original => {
+  const name = original.replace(" ", "");
+  return [`${name} left`, `${name} right`];
+}
+
+const convertFromPrimitivesName = original => {
+  let name = original.substring(0, original.indexOf(" "));
+  name = `${name.substring(0, 2)} ${name.substring(2, 4)}`
+  return name;
+}
+
+const backViewport = {
+    "nearPlane": 1.5013817389693542,
+    "farPlane": 15013.81125645484,
+    "eyePosition": [
+        -79.66697327672085,
+        4502.629849904295,
+        753.9406181930069
+    ],
+    "targetPosition": [
+        -1.0555419921875,
+        -102.07274055480957,
+        782.4486846923828
+    ],
+    "upVector": [
+        0.00913897460936149,
+        0.006346713837116281,
+        0.9999380972673397
+    ]
+};
+
 export default {
   name: "TaraScaffoldVuer",
   components: {
@@ -164,9 +245,13 @@ export default {
     ElIconFolderOpened,
     NeedlesTable,
     ScaffoldVuer,
+    SideBar,
   },
   data: function () {
     return {
+      acupoints: undefined,
+      acupointsLabelOn: false,
+      glyphs: markRaw([]),
       quickEditOn: false,
       displayUI: true,
       ElIconEditPen: shallowRef(ElIconEditPen),
@@ -176,6 +261,25 @@ export default {
       needlesInfo: {},
       infoVisible: false,
       importing: false,
+      sidebarTabs: [
+        {title: 'Acupoints', id: 1, type: 'acupoints' },
+      ],
+      envVars: {
+        API_LOCATION: import.meta.env.VITE_APP_API_LOCATION,
+        ALGOLIA_KEY: import.meta.env.VITE_APP_ALGOLIA_KEY,
+        ALGOLIA_ID: import.meta.env.VITE_APP_ALGOLIA_ID,
+        ALGOLIA_INDEX: import.meta.env.VITE_APP_ALGOLIA_INDEX,
+        PENNSIEVE_API_LOCATION: import.meta.env.VITE_APP_PENNSIEVE_API_LOCATION,
+        BL_SERVER_URL: import.meta.env.VITE_APP_BL_SERVER_URL,
+        NL_LINK_PREFIX: import.meta.env.VITE_APP_NL_LINK_PREFIX,
+        ROOT_URL: import.meta.env.VITE_APP_ROOT_URL,
+        FLATMAPAPI_LOCATION: import.meta.env.VITE_FLATMAPAPI_LOCATION,
+      },
+      messageSettings: {
+        duration: 0,
+        message: "Downloading Texture"
+      }
+      
     };
   },
   props: {
@@ -185,12 +289,24 @@ export default {
     },    
     url: {
       type: String,
-      default: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/texture/arm1/arm_metadata.json",
+      default: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/tara/whole_body-30-1-25/human_body_acupoints_metadata.json",
     },
     pointTolerance: {
       type: Number,
       default: 20,
-    }
+    },
+    acupointsEndpoint: {
+      type: String,
+      default: "",
+    },
+    acupointsViewer: {
+      type: Boolean,
+      default: false,
+    },
+    textureUrl: {
+      type: String,
+      default: "",
+    },
   },
   watch: {
     helpMode: function (newVal) {
@@ -220,15 +336,46 @@ export default {
     );
   },
   methods: {
+    displayLabels: function() {
+      if (this.acupointsLabelOn) {
+        this.glyphs.forEach(glyph => glyph.hideLabel());
+        this.acupointsLabelOn = false;
+      } else {
+        this.glyphs.forEach(glyph => glyph.showLabel());
+        this.acupointsLabelOn = true;
+      }
+    },
+    frontView: function() {
+      const control  = this.$refs.scaffold.$module.scene.getZincCameraControls();
+      control.resetView();
+    },
+    backView: function() {
+      const control  = this.$refs.scaffold.$module.scene.getZincCameraControls();
+      control.setCurrentCameraSettings(backViewport);
+    },
+    onAcupointsClicked: function (data) {
+      let names = undefined;
+      if (data?.Acupoint) {
+        names = convertToPrimitivesName(data.Acupoint);
+      }
+      this.$refs.scaffold.changeActiveByName(names, "", false);
+    },
+    onAcupointsHovered: function (data) {
+      let names = undefined;
+      if (data?.Acupoint) {
+        names = convertToPrimitivesName(data.Acupoint);
+      }
+      this.$refs.scaffold.changeHighlightedByName(names, "", false);
+    },
     exportLocalAnnotations: function() {
-      const annotations = this.$refs.scaffold.getLocalAnnotations();
+      const annotations = this.$refs.scaffold.getOfflineAnnotations();
       const filename = 'scaffoldAnnotations' + JSON.stringify(new Date()) + '.json';
       writeTextFile(filename, annotations);
     },
     onReaderLoad: function(event) {
       const annotationsList = JSON.parse(event.target.result);
       this.importing = true;
-      this.$refs.scaffold.importLocalAnnotations(annotationsList);
+      this.$refs.scaffold.importOfflineAnnotations(annotationsList);
       this.importing = false;
     },
     importLocalAnnotations: function() {
@@ -240,6 +387,15 @@ export default {
     objectAdded: function (zincObject) {
       if (!zincObject.isLines2) {
         this._pickableObjects.push(zincObject);
+        if (zincObject.isGlyphset) {
+          zincObject.setScaleAll(2);
+          this.glyphs.push(zincObject);
+        } else {
+          if (zincObject.groupName === "undefined" &&
+            zincObject._lod?._material?.side) {
+            zincObject._lod._material.side =  THREE.FrontSide;
+          }
+        }
       } else {
         this.userPrimitivesUpdated({zincObject});
       }
@@ -247,12 +403,63 @@ export default {
     screenCapture: function () {
       this.$refs.scaffold.captureScreenshot("capture.png");
     },
-    onReady: function () {
+    onReady: async function () {
       const viewer = this.$refs.scaffold;
       const bounds = viewer.$module.scene.getBoundingBox();
       const d = bounds.max.distanceTo( bounds.min );
       this._createLinesLength = d / 6.0;
       if (this.consoleOn) console.log("Lines length", this._createLinesLength);
+      if (this.acupointsEndpoint) {
+        fetch(this.acupointsEndpoint)
+          .then(response => response.json())
+          .then((json) => {
+            const filtered = {};
+            const keys = Object.keys(json);
+            this.glyphs.forEach((glyph) => { 
+              if (glyph.groupName) {
+                const converted = convertFromPrimitivesName(glyph.groupName);
+                for (let i = 0; i < keys.length; i++) {
+                  if (converted.toLowerCase() === keys[i].toLowerCase()) {
+                    filtered[keys[i]] = json[keys[i]];
+                    break;
+                  }
+                }
+              }
+            });
+            this.acupoints = filtered;
+          });
+      }
+      const Zinc = this.$refs.scaffold.$module.Zinc;
+      if (this.textureUrl) {
+        const ele = this.$refs.taraContainer;
+        const original = ElMessage({
+          message: 'Downloading texture',
+          showClose: true,
+          duration: 0,
+          appendTo: ele,
+        });
+        const newTexture = await readNIFTIFromURL(Zinc, this.textureUrl);
+        if (newTexture) {
+          ElMessage({
+            message: 'Texture loaded Successfully',
+            showClose: true,
+            duration: 6000,
+            type: "success",
+            appendTo: ele,
+          });
+          original.close();
+          viewer.$module.scene.addZincObject(newTexture);
+        } else {
+          ElMessage({
+            message: 'Unable to load texture',
+            showClose: true,
+            duration: 6000,
+            type: "error",
+            appendTo: ele,
+          });
+          original.close();
+        }
+      }
     },
     addLinesWithNormal: function (data, coord, normal) {
       const myViewer = this.$refs.scaffold;
@@ -314,6 +521,13 @@ export default {
           } else if (data[0].extraData.intersected?.face) {
             this.addPoint(data, data[0].extraData.worldCoords);
           }
+        } else {
+          if (data && data.length > 0 && data[0].data.group) {
+            const label = convertFromPrimitivesName(data[0].data.group);
+            if (label && label.trim() && this.$refs.sideBar) {
+              this.$refs.sideBar.openAcupointsSearch(label);
+            }
+          }
         }
       }
     },
@@ -371,7 +585,7 @@ input[type="file"] {
 
 .settings-panels {
   z-index:10000;
-  right:0px;
+  left:0px;
   position:absolute;
   text-align: center;
   background-color: rgba(255, 255, 255, 0.5);
