@@ -37,12 +37,13 @@
     "./dist/style.css": "./dist/style.css"
   },
   "dependencies": {
-    "@abi-software/map-side-bar": "2.6.3-acupoints.1",
-    "@abi-software/map-utilities": "1.5.0-beta.2",
-    "@abi-software/scaffoldvuer": "^1.9.0-beta.2",
-    "element-plus": "^2.7.5",
+    "@abi-software/map-side-bar": "2.12.0-acupoints.2",
+    "@abi-software/map-utilities": "1.7.6",
+    "@abi-software/scaffoldvuer": "^1.13.1-beta.5",
+    "element-plus": "2.8.4",
     "nifti-reader-js": "^0.7.1",
     "pinia": "^2.1.7",
+    "three-mesh-halfedge": "^1.0.3",
     "vite-plugin-node-polyfills": "^0.22.0",
     "vue": "^3.4.21"
   },

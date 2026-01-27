@@ -7,18 +7,28 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    EditingToolTip: typeof import('./components/EditingToolTip.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCol: typeof import('element-plus/es')['ElCol']
+    ElInput: typeof import('element-plus/es')['ElInput']
     ElOption: typeof import('element-plus/es')['ElOption']
     ElPopover: typeof import('element-plus/es')['ElPopover']
+    ElRadio: typeof import('element-plus/es')['ElRadio']
+    ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
     ElRow: typeof import('element-plus/es')['ElRow']
     ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTable: typeof import('element-plus/es')['ElTable']
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
+    FileInput: typeof import('./components/FileInput.vue')['default']
+    InputDialog: typeof import('./components/inputDialog.vue')['default']
     NeedlesTable: typeof import('./components/NeedlesTable.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Scaffold: typeof import('./components/mixins/scaffold.vue')['default']
+    SimpleTexture: typeof import('./components/SimpleTexture.vue')['default']
     TaraScaffoldVuer: typeof import('./components/TaraScaffoldVuer.vue')['default']
+    URLFIleHandler: typeof import('./components/URLFIleHandler.vue')['default']
+    UrlFileReader: typeof import('./components/UrlFileReader.vue')['default']
   }
 }

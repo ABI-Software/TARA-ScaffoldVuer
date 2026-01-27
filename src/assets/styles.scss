@@ -1,1 +1,85 @@
 @import 'variables';
+
+:deep(.warning-icon) {
+  display:none;
+}
+.scaffold-container {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: absolute;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+:deep(.left-buttons) {
+  width: 97px;
+}
+
+.settings-panels {
+  z-index:2;
+  left:0px;
+  position:absolute;
+  text-align: left;
+  background-color: rgba(255, 255, 255, 0.5);
+  width:300px;
+
+  .el-radio-group {
+    width:300px;
+    .el-radio{
+      margin-right: 15px;
+
+    }
+    .el-radio__label {
+      color: #333333;
+    }
+  }
+
+  .el-row {
+    width:200px;
+
+    .el-col {
+      &.extra-wide {
+        width: 300px;
+      }
+
+      &.is-guttered {
+        padding-top: 5px;
+        padding-bottom: 5px;
+      }
+
+      > p {
+        font-size: 12px;
+        margin: 0;
+      }
+
+      .el-input__inner,
+      .el-switch {
+        font-size: 12px;
+        height: 20px;
+      }
+    }
+  }
+}
+
+.needles-button {
+  z-index:10000;
+  margin-top: 5px;
+}
+
+.side-bar {
+  display: block;
+}
+
+.vuer {
+  :deep(svg.map-icon) {
+    color: #8300BF;
+  }
+  &.collapsed {
+    width: calc(100% - 560px);
+  }
+}
+
+/* Component Styles */
