@@ -1,7 +1,10 @@
 <script>
 import { THREE } from "zincjs";
-import { watchEffect } from 'vue'
-
+import { watchEffect } from 'vue';
+//import { acupointEntries } from '../acupoints.js';
+import { markRaw } from 'vue';
+import { impliedData } from '../implied.js';
+import EventBus from '@abi-software/map-utilities/src/components/EventBus.js';
 
 const v1 = new THREE.Vector3();
 const v2 = new THREE.Vector3();
@@ -71,6 +74,77 @@ const convertToPrimitivesName = original => {
   return [`${name} left`, `${name} right`];
 }
 
+const convertFromPrimitivesName = original => {
+  let name = original.substring(0, original.indexOf(" "));
+  if (name) {
+    name = `${name.substring(0, 2)} ${name.substring(2, 4)}`
+  } else {
+    name = original;
+  }
+  return name;
+}
+
+const getMeridian = original => {
+  let name = original.substring(0, original.indexOf(" "));
+  if (name.length === 2) {
+    return name;
+  }
+  return undefined;
+}
+
+const parseAcupointsData = data => {
+  const list = data['results']['bindings'];
+  const parsed = {};
+  const keyMap = {
+    Acupoint: "Acupoint",
+    "Acupuncture Method": "Acupuncture_Method",
+    Synonym: "Synonym",
+    Meridian: "Meridian",
+    "Chinese Name": "Chinese_Name",
+    Location: "Location",
+    "Locational Anatomy": "Locational_Anatomy",
+    Reference: "Reference",
+    Innervation: "Innervation",
+    Vasculature: "Vasculature",
+    "Special Point Role": "Special_Point_Role",
+  };
+
+  let match = 0;
+  list.forEach(item => {
+    const name = item['Acupoint']['value'];
+    let onMRI = false;
+    const nameToMatch = name.split('(')[0].replaceAll(" ", "");
+
+    if (nameToMatch in impliedData ) {
+      match = match + 1
+      onMRI = impliedData[nameToMatch];
+    }
+    const obj = {};
+    for (const [key, value] of Object.entries(keyMap)) {
+      if (item[value]) {
+        obj[key] = item[value]['value'];
+      }
+    }
+    if (item['Acupoint_Category']['value'] === "Meridian Acupoint") {
+      obj["Meridian Point"] = true;
+    } else {
+      obj["Meridian Point"] = false;
+    }
+    if (item['Acupoint_Curie']['value'].includes('TARA:')) {
+      let curie = item['Acupoint_Curie']['value'];
+      curie = curie.replace(":", "_");
+      obj['Link'] = "https://tara-repository.mgb.org/term_resolution/tara.html#" + curie;
+    }
+    obj['onMRI'] = onMRI;
+    parsed[name] = obj;
+  });
+
+  //console.log("total matched", match)
+  //console.log("list total:", list.length)
+
+  return parsed;
+}
+
 const writeTextFile = (filename, data) => {
   let dataStr =
     "data:text/json;charset=utf-8," +
@@ -102,6 +176,26 @@ const getIntersectedObjects = (intersects) => {
 export default {
   name: "scaffoldMixin",
   props: {
+    acupointsEndpoint: {
+      type: String,
+      default: "",
+    },
+    consoleOn: {
+      type: Boolean,
+      default: false,
+    },
+    maskUrl: {
+      type: String,
+      default: "",
+    },
+    requireTexture: {
+      type: Boolean,
+      default: true,
+    },
+    textureUrl: {
+      type: String,
+      default: "",
+    },
     url: {
       type: String,
       default: "https://mapcore-bucket1.s3.us-west-2.amazonaws.com/tara/whole_body-30-1-25/human_body_acupoints_metadata.json",
@@ -109,13 +203,27 @@ export default {
   },
   data: function () {
     return {
+      acupoints: {},
       acupointsInfo: false,
       currentViewport: 0,
+      pointsMapping: markRaw({}),
+      previousList: markRaw([]),
+      userPoints: markRaw([]),
+      glyphs: markRaw([]),
       loadingPredefined: false,
+      importing: false,
       isDrawerOpen: false,
       tCentre: [0, 0, 0],
       viewport: undefined,
     }
+  },
+  computed: {
+    readyForDisplay: function() {
+      if (this.url) {
+        return (!this.requireTexture || (this.url && this.textureUrl));
+      }
+      return false;
+    },
   },
   watch: {
     helpMode: function (newVal) {
@@ -142,6 +250,9 @@ export default {
       const control = this.$refs.scaffold.$module.scene.getZincCameraControls();
       this.viewport = control.getCurrentViewport();
     },
+    resetView: function() {
+      this.$refs.scaffold.$module.scene.resetView();
+    },
     rotate: function() {
       const num = viewportSettings.length;
       let index = this.currentViewport + 1;
@@ -165,20 +276,88 @@ export default {
       }
       this.$refs.scaffold.changeHighlightedByName(names, "", false);
     },
-    addAcupointsInfo: function(zincObject) {
-      if (!this.acupoints) this.acupoints = {};
-      const label = zincObject.groupName;
-      if (label) {
-        if (!(label in this.acupoints)) {
-          this.acupoints[label] = {Acupoint: label};
+    onAcupointsResult: function (data) {
+      this.previousList.forEach(
+        zincObject => zincObject.setVisibility(false));
+      this.previousList = [];
+      const keys = Object.keys(this.pointsMapping);
+      data.list.forEach((item) => {
+        if (keys.includes(item.Acupoint)) {
+          this.pointsMapping[item.Acupoint].forEach(zincObject => {
+            zincObject.setVisibility(true);
+            this.previousList.push(zincObject);
+          });
         }
-        if (!this.loadingPredefined) {
+      });
+    },
+    addAndCuratedAcupointsLabel: function(label, addInfo) {
+      if (!this.acupoints) this.acupoints = {};
+      if (label) {
+        if (addInfo && !(label in this.acupoints)) {
+          this.acupoints[label] = {
+            Acupoint: label,
+            "Meridian Point": false,
+            userDefined: true,
+          };
+        }
+        if (label in this.acupoints) {
+          this.acupoints[label].Curated = true;
+        }
+      }
+    },
+    addGraphicsToPointsList: function(zincObject) {
+      const label = zincObject.groupName;
+      if (!(label in Object.keys(this.pointsMapping))) {
+        this.pointsMapping[label] = [];
+      }
+      this.pointsMapping[label].push(zincObject);
+      this.previousList.push(zincObject);
+    },
+    addAcupointsInfo: function(zincObject, addInfo) {
+      const label = zincObject.groupName;
+      this.addAndCuratedAcupointsLabel(label, addInfo);
+     if (label) {
+        if ((!this.importing && !this.loadingPredefined) && this.intMode === "view") {
           this.$nextTick(() => {
             if (label && this.$refs.sideBar) {
               this.$refs.sideBar.openAcupointsSearch(label);
             }
           });
         }
+        this.addGraphicsToPointsList(zincObject);
+      }
+    },
+    suggestAcupoints: function(term) {
+      const suggestedTerms = [];
+      if (this.acupoints) {
+        Object.keys(this.acupoints).forEach(key => {
+          if (!this.acupoints[key].Curated && key.startsWith(term)) {
+            suggestedTerms.push({value: key, value: key});
+          }
+        });
+      }
+      return suggestedTerms;
+    },
+    readAcupoints: function() {
+      if (this.acupointsEndpoint) {
+        fetch(this.acupointsEndpoint)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Cannot download acupoints from server: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            this.populateAcupoints(data);
+          })
+          .catch((error) => {
+            console.log(error)
+            if (acupointEntries) {
+              this.populateAcupoints(acupointEntries);
+            }
+          });
+      } else if (acupointEntries) {
+        this.populateAcupoints(acupointEntries);
       }
     },
     screenCapture: function () {
@@ -191,16 +370,15 @@ export default {
       if (this.acupointsInfo) {
         data = {
           annotations: annotations,
-          acupoints: this.acupoints
+          //Disable acupoints import for now.
+          //acupoints: this.acupoints
         }
       }
       const date = JSON.stringify(new Date());
       writeTextFile(`${prefix}${date}.json`, data);
     },
-    onReaderLoad: function(event) {
-      const data = JSON.parse(event.target.result);
+    readAnnotations: function(data) {
       let annotations = undefined;
-      let acupoints = undefined;
       if (Array.isArray(data)) {
         annotations = data;
       } else {
@@ -215,13 +393,40 @@ export default {
       if (annotations) {
         this.$refs.scaffold.importOfflineAnnotations(annotations);
       }
+      //Disable importing acupoint information.
+      /*
       if (acupoints) {
         if (!this.acupoints) {
           this.acupoints = {};
         }
         Object.assign(this.acupoints, acupoints);
       }
+      */
       this.importing = false;
+    },
+
+    onReaderLoad: function(event) {
+      const data = JSON.parse(event.target.result);
+      this.readAnnotations(data);
+    },
+    populateAcupoints: function(rawData) {
+      const parsedData = parseAcupointsData(rawData);
+      //Dont filtered
+      this.acupoints = parsedData;
+      const keys = Object.keys(parsedData);
+      if (this.glyphs && this.glyphs.length) {
+        this.glyphs.forEach((glyph) => {
+          if (glyph.groupName) {
+            const converted = convertFromPrimitivesName(glyph.groupName);
+            for (let i = 0; i < keys.length; i++) {
+              if (converted.toLowerCase() === keys[i].toLowerCase()) {
+                this.addAndCuratedAcupointsLabel(keys[i]);
+                break;
+              }
+            }
+          }
+        });
+      }
     },
     importLocalAnnotations: function() {
       const selectedFile = document.getElementById("annotations-upload").files[0];
@@ -240,6 +445,7 @@ export default {
     addPoint: function (data, coord) {
       const myViewer = this.$refs.scaffold;
       myViewer.createData.shape = "Point";
+      myViewer.createData.regionPrefix = "acupoints";
       if (this.consoleOn) {
         console.log(myViewer.createData);
         console.log("addPoints", data, coord);
@@ -276,10 +482,44 @@ export default {
       viewport.upVector = [v2.x, v2.y, v2.z];
       control.setCurrentCameraSettings(viewport);
     },
+    updateCuratedStatus: function(name) {
+      if (name in this.acupoints) {
+        const scene = this.$refs.scaffold.$module.scene;
+        if (scene) {
+          const objects = scene.findObjectsWithGroupName(name);
+          if (objects.length > 0) {
+            this.acupoints[name].Curated = true;
+          } else{
+            this.acupoints[name].Curated = false;
+          }
+        }
+      }
+    },
+    graphicsRenamed: function(zincObject, oldName, newName) {
+      //Adjust  listing based on the information on renaming
+      this.updateCuratedStatus(oldName);
+      this.updateCuratedStatus(newName);
+      if (oldName in this.pointsMapping) {
+        const list = this.pointsMapping[oldName];
+        for (let i = list.length - 1; i >= 0; i--) {
+          if (list[i].uuid === zincObject.uuid) {
+            list.splice(i, 1);
+          }
+        }
+        if (list.length === 0) {
+          delete this.pointsMapping[oldName];
+        }
+      }
+      this.addGraphicsToPointsList(zincObject);
+    },
     userPrimitivesUpdated: function (payload) {
       if (this.consoleOn) console.log("userPrimitivesUpdated", payload);
       const zincObject = payload.zincObject;
-      if ((zincObject.isEditable || this.importing) && zincObject.isLines2) {
+      if (payload.renamedFrom) {
+        this.graphicsRenamed(zincObject, payload.renamedFrom, zincObject.groupName);
+      }
+      if ((zincObject.isEditable || this.importing) && zincObject.isLines2
+        && !zincObject.renamedFrom) {
         //Call the following to set the camera
         const scene = this.$refs.scaffold.$module.scene;
         const camera = scene.getZincCameraControls();
@@ -309,7 +549,6 @@ export default {
       }
     },
   },
-
 };
 </script>
 

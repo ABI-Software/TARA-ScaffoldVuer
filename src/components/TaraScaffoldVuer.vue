@@ -164,7 +164,6 @@
       v-if="acupoints"
       ref="sideBar"
       class="side-bar"
-      :envVars="envVars"
       :visible="true"
       :activeTabId="1"
       :tabs="sidebarTabs"
@@ -185,7 +184,6 @@ import NeedlesTable from "./NeedlesTable.vue";
 import { readNIFTIFromURL } from "./niftiReader.js"
 import { SideBar } from "@abi-software/map-side-bar";
 import "@abi-software/map-side-bar/dist/style.css";
-//import { acupointEntries } from './acupoints.js'
 import { ScaffoldVuer } from "@abi-software/scaffoldvuer";
 import scaffoldMixin from "../mixins/scaffold.vue";
 import "@abi-software/scaffoldvuer/dist/style.css";
@@ -223,11 +221,6 @@ const findNearbyPoints = (data, tolerance) => {
       }
     }
   }
-}
-
-const convertToPrimitivesName = original => {
-  const name = original.replace(" ", "");
-  return [`${name} left`, `${name} right`];
 }
 
 const convertFromPrimitivesName = original => {
@@ -281,11 +274,9 @@ export default {
   mixins: [scaffoldMixin],
   data: function () {
     return {
-      acupoints: undefined,
       acupointsLabelOn: false,
       alignPoint: true,
       bodyScaffold: undefined,
-      glyphs: markRaw([]),
       quickEditOn: false,
       displayUI: true,
       ElIconDataAnalysis: shallowRef(ElIconDataAnalysis),
@@ -300,17 +291,6 @@ export default {
       sidebarTabs: [
         {title: 'Acupoints', id: 1, type: 'acupoints' },
       ],
-      envVars: {
-        API_LOCATION: import.meta.env.VITE_APP_API_LOCATION,
-        ALGOLIA_KEY: import.meta.env.VITE_APP_ALGOLIA_KEY,
-        ALGOLIA_ID: import.meta.env.VITE_APP_ALGOLIA_ID,
-        ALGOLIA_INDEX: import.meta.env.VITE_APP_ALGOLIA_INDEX,
-        PENNSIEVE_API_LOCATION: import.meta.env.VITE_APP_PENNSIEVE_API_LOCATION,
-        BL_SERVER_URL: import.meta.env.VITE_APP_BL_SERVER_URL,
-        NL_LINK_PREFIX: import.meta.env.VITE_APP_NL_LINK_PREFIX,
-        ROOT_URL: import.meta.env.VITE_APP_ROOT_URL,
-        FLATMAPAPI_LOCATION: import.meta.env.VITE_FLATMAPAPI_LOCATION,
-      },
       messageSettings: {
         duration: 0,
         message: "Downloading Texture"
@@ -319,25 +299,13 @@ export default {
     };
   },
   props: {
-    consoleOn: {
-      type: Boolean,
-      default: false,
-    },
     pointTolerance: {
       type: Number,
       default: 20,
     },
-    acupointsEndpoint: {
-      type: String,
-      default: "",
-    },
     acupointsViewer: {
       type: Boolean,
       default: false,
-    },
-    textureUrl: {
-      type: String,
-      default: "",
     },
   },
   watch: {
@@ -408,7 +376,7 @@ export default {
         } else if (zincObject.isPointset) {
           zincObject.setSize(15);
           zincObject.setColourHex(0xff5724);
-          this.addAcupointsInfo(zincObject);
+          this.addAcupointsInfo(zincObject, false);
         } else {
           if (zincObject.groupName === "undefined" &&
             zincObject._lod?._material?.side) {
@@ -422,22 +390,6 @@ export default {
     screenCapture: function () {
       this.$refs.scaffold.captureScreenshot("capture.png");
     },
-    populateAcupoints: function(data) {
-      const filtered = {};
-      const keys = Object.keys(data);
-      this.glyphs.forEach((glyph) => {
-        if (glyph.groupName) {
-          const converted = convertFromPrimitivesName(glyph.groupName);
-          for (let i = 0; i < keys.length; i++) {
-            if (converted.toLowerCase() === keys[i].toLowerCase()) {
-              filtered[keys[i]] = data[keys[i]];
-              break;
-            }
-          }
-        }
-      });
-      this.acupoints = filtered;
-    },
     onReady: async function () {
       const viewer = this.$refs.scaffold;
       viewer.offlineAnnotationEnabled = true;
@@ -445,26 +397,7 @@ export default {
       const d = bounds.max.distanceTo( bounds.min );
       this._createLinesLength = d / 6.0;
       if (this.consoleOn) console.log("Lines length", this._createLinesLength);
-      if (this.acupointsEndpoint) {
-        fetch(this.acupointsEndpoint)
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`Cannot download acupoints from server: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then((data) => {
-            this.populateAcupoints(data);
-          })
-          .catch((error) => {
-            console.log(error)
-            if (acupointEntries) {
-              this.populateAcupoints(acupointEntries);
-            }
-          });
-      } else if (acupointEntries) {
-        this.populateAcupoints(acupointEntries);
-      }
+      this.readAcupoints();
       const Zinc = this.$refs.scaffold.$module.Zinc;
       if (this.textureUrl) {
         const ele = this.$refs.taraContainer;
